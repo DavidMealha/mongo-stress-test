@@ -1,34 +1,44 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"time"
 	"math/rand"
+	"sync"
+)
+
+var (
+	wg sync.WaitGroup
 )
 
 func init() {
 
 }
 
-func startClient() {
-	for i := 0; i < 100; i++ {
-		rand := rand.Intn()
+func startClient(clientNr int) {
+	for i := 0; i < 10; i++ {
+		rand := rand.Intn(2)
 		if rand == 0 {
-			//perform write
-			fmt.Println("Do write")
+			fmt.Printf("Do write in Client %v =>", i)
+			fmt.Print(time.Now())
+			fmt.Println()
 		} else {
-			//perform read
-			fmt.Println("Do read")
+			fmt.Printf("Do read in Client %v =>", i)
+			fmt.Print(time.Now())
+			fmt.Println()
 		}
+		time.Sleep(100 * time.Millisecond)
 	}
+	wg.Done()
 }
 
 func main() {
-
 	for i := 0; i < 10; i++ {
-		go startClient()
+		wg.Add(1)
+		go startClient(i)
 	}
+
+	wg.Wait()
 
 	fmt.Println("What am i doing????")
 }
