@@ -5,6 +5,7 @@ import (
 	"time"
 	"math/rand"
 	"sync"
+	"net/http"
 )
 
 var (
@@ -30,6 +31,29 @@ func startClient(clientNr int) {
 		time.Sleep(1000 * time.Millisecond)
 	}
 	defer wg.Done()
+}
+
+func insertUser() {
+	resp, err := http.PostForm("localhost:8080/customers",
+								url.Values{
+									"username": "",
+									"password": "",
+									"email": "",
+									"firstName": "",
+									"lastName": ""
+								})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Response Status:", resp.Status())
+}
+
+func readUsers() {
+	resp, err := http.Get("localhost:8080/customers")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Response Status:", resp.Status())
 }
 
 func main() {
