@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"sync"
 	"net/http"
-	"io/ioutil"
 	"bytes"
 )
 
@@ -32,7 +31,7 @@ func startClient(clientNr int) {
 			fmt.Print(time.Now())
 			fmt.Println()
 		}
-		time.Sleep(1000 * time.Millisecond)
+		//time.Sleep(1000 * time.Millisecond)
 	}
 	defer wg.Done()
 }
@@ -60,10 +59,10 @@ func insertUser() {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-	}
+	//body, err := ioutil.ReadAll(resp.Body)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
 	fmt.Println("response Status:", resp.Status)
 }
 
