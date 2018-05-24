@@ -6,24 +6,28 @@ import (
 	"math/rand"
 	"sync"
 	"net/http"
+	//"net/url"
+	"io/ioutil"
+	"bytes"
 )
 
 var (
 	wg sync.WaitGroup
-	letters := []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
+	letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
 )
 
 func init() {
-
+	rand.Seed(time.Now().UnixNano())
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
 			fmt.Printf("Do write in Client %v =>", clientNr)
 			fmt.Print(time.Now())
 			fmt.Println()
+			insertUser()
 		} else {
 			fmt.Printf("Do read in Client %v =>", clientNr)
 			fmt.Print(time.Now())
@@ -34,36 +38,66 @@ func startClient(clientNr int) {
 	defer wg.Done()
 }
 
+type User struct {
+	username string
+	password string
+	email string
+	firstName string
+	lastName string
+}
+
+
 func insertUser() {
-	resp, err := http.PostForm("localhost:8080/customers",
-								url.Values{
-									"username": getRandomString(8),
-									"password": getRandomString(12),
-									"email": getRandomString(10),
-									"firstName": getRandomString(6),
-									"lastName": getRandomString(8)
-								})
+	url := "http://localhost:8080/customers"
+	str := `{"username":"` + getRandomString(8) + 
+			 `","password":"` + getRandomString(12) + 
+			 `","email":"` + getRandomString(10) + 
+			 `","firstName":"` + getRandomString(6) + 
+			 `","lastName":"` + getRandomString(8) + `"}`
+
+ 	fmt.Println("json =>", str)
+
+	var jsonStr = []byte(str)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
-	fmt.Println("Response Status:", resp.Status())
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println("response Status:", resp.Status)
+	fmt.Println("Ended request")
+	fmt.Println(string(body))
 }
 
 func getRandomString(size int) string{
 	lettersLen := len(letters)
 	var str string
 	for i := 0; i < size; i++ {
-		str += letters[rand.Intn(lettersLen)]
+		rand := rand.Intn(lettersLen)
+		str += letters[rand]
 	}
-	return string
+	fmt.Printf("Resulting string %v", str)
+	fmt.Println()
+	return str
 }
 
 func readUsers() {
-	resp, err := http.Get("localhost:8080/customers")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("Response Status:", resp.Status())
+	//resp, err := http.Get("localhost:8080/customers")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("Response Status:", resp.Status())
 }
 
 func main() {
