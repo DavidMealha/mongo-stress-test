@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"sync"
 	"net/http"
-	//"net/url"
 	"io/ioutil"
 	"bytes"
 )
@@ -21,7 +20,7 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 100; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
 			fmt.Printf("Do write in Client %v =>", clientNr)
@@ -37,15 +36,6 @@ func startClient(clientNr int) {
 	}
 	defer wg.Done()
 }
-
-type User struct {
-	username string
-	password string
-	email string
-	firstName string
-	lastName string
-}
-
 
 func insertUser() {
 	url := "http://localhost:8080/customers"
@@ -74,10 +64,7 @@ func insertUser() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	fmt.Println("response Status:", resp.Status)
-	fmt.Println("Ended request")
-	fmt.Println(string(body))
 }
 
 func getRandomString(size int) string{
@@ -87,8 +74,6 @@ func getRandomString(size int) string{
 		rand := rand.Intn(lettersLen)
 		str += letters[rand]
 	}
-	fmt.Printf("Resulting string %v", str)
-	fmt.Println()
 	return str
 }
 
@@ -105,8 +90,5 @@ func main() {
 	for i := 0; i < 10; i++ {
 		go startClient(i)
 	}
-
 	wg.Wait()
-
-	fmt.Println("What am i doing????")
 }
