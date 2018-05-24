@@ -10,6 +10,7 @@ import (
 
 var (
 	wg sync.WaitGroup
+	letters := []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
 )
 
 func init() {
@@ -36,16 +37,25 @@ func startClient(clientNr int) {
 func insertUser() {
 	resp, err := http.PostForm("localhost:8080/customers",
 								url.Values{
-									"username": "",
-									"password": "",
-									"email": "",
-									"firstName": "",
-									"lastName": ""
+									"username": getRandomString(8),
+									"password": getRandomString(12),
+									"email": getRandomString(10),
+									"firstName": getRandomString(6),
+									"lastName": getRandomString(8)
 								})
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("Response Status:", resp.Status())
+}
+
+func getRandomString(size int) string{
+	lettersLen := len(letters)
+	var str string
+	for i := 0; i < size; i++ {
+		str += letters[rand.Intn(lettersLen)]
+	}
+	return string
 }
 
 func readUsers() {
