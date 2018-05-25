@@ -19,7 +19,7 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 5; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
 			fmt.Printf("Do write in Client %v =>", clientNr)
@@ -31,7 +31,7 @@ func startClient(clientNr int) {
 			fmt.Print(time.Now())
 			fmt.Println()
 		}
-		//time.Sleep(1000 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 	}
 	defer wg.Done()
 }
@@ -90,4 +90,6 @@ func main() {
 		go startClient(i)
 	}
 	wg.Wait()
+
+    fmt.Println("Finished.")
 }
