@@ -19,17 +19,17 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 100; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
-			fmt.Printf("Do write in Client %v =>", clientNr)
-			fmt.Print(time.Now())
-			fmt.Println()
+			//fmt.Printf("Do write in Client %v =>", clientNr)
+			//fmt.Print(time.Now())
+			//fmt.Println()
 			insertUser()
 		} else {
-			fmt.Printf("Do read in Client %v =>", clientNr)
-			fmt.Print(time.Now())
-			fmt.Println()
+			//fmt.Printf("Do read in Client %v =>", clientNr)
+			//fmt.Print(time.Now())
+			//fmt.Println()
 		}
 		time.Sleep(1000 * time.Millisecond)
 	}
@@ -43,8 +43,6 @@ func insertUser() {
 			 `","email":"` + getRandomString(10) + 
 			 `","firstName":"` + getRandomString(6) + 
 			 `","lastName":"` + getRandomString(8) + `"}`
-
- 	fmt.Println("json =>", str)
 
 	var jsonStr = []byte(str)
 
@@ -63,10 +61,11 @@ func insertUser() {
 	//if err != nil {
 	//	fmt.Println(err)
 	//}
-	fmt.Println("response Status:", resp.Status)
+	fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
+	//fmt.Println("response Status:", resp.Status)
 }
 
-func getRandomString(size int) string{
+func getRandomString(size int) string {
 	lettersLen := len(letters)
 	var str string
 	for i := 0; i < size; i++ {
@@ -84,12 +83,30 @@ func readUsers() {
 	//fmt.Println("Response Status:", resp.Status())
 }
 
+func getAllRecords(dbAddress string) string {
+	sessionCloud, err := mgo.Dial(dbAddress)
+    if err != nil {
+    	panic(err)
+    }
+
+    defer sessionCloud.Close()
+}
+
+func verifyOrder() {
+	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020?replicaSet=rs0")
+	edgeRecords	 := getAllRecords("localhost:27021")
+
+	//check if both lists have the same length
+	//compare the value of each list position to see if they match
+}
+
 func main() {
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		go startClient(i)
 	}
 	wg.Wait()
 
+	verifyOrder();
     fmt.Println("Finished.")
 }
