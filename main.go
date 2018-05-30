@@ -7,6 +7,7 @@ import (
 	"sync"
 	"net/http"
 	"bytes"
+	"github.com/DavidMealha/mongo-stress-test/users"
 )
 
 var (
@@ -83,19 +84,33 @@ func readUsers() {
 	//fmt.Println("Response Status:", resp.Status())
 }
 
-func getAllRecords(dbAddress string) string {
+func getAllRecords(dbAddress string) []User {
 	sessionCloud, err := mgo.Dial(dbAddress)
     if err != nil {
     	panic(err)
     }
 
     defer sessionCloud.Close()
+
+    c := session.DB("users").C("customers")
+
+    var results []User
+    err = c.Find(nil).All(&results)
+
+    if err != nil
+    	panic(err)
+	else
+		return results
 }
 
 func verifyOrder() {
 	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020?replicaSet=rs0")
 	edgeRecords	 := getAllRecords("localhost:27021")
 
+	fmt.Println("Cloud length => ", len(cloudRecords))
+	fmt.Println("Edge length => ", len(cloudRecords))
+	
+	
 	//check if both lists have the same length
 	//compare the value of each list position to see if they match
 }
