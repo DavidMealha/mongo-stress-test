@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"bytes"
 	"github.com/DavidMealha/mongo-stress-test/users"
+	"gopkg.in/mgo.v2"
+	"io/ioutil"
 )
 
 var (
@@ -20,7 +22,7 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
 			//fmt.Printf("Do write in Client %v =>", clientNr)
@@ -58,10 +60,10 @@ func insertUser() {
 	}
 	defer resp.Body.Close()
 
-	//body, err := ioutil.ReadAll(resp.Body)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err, body)
+	}
 	fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
 	//fmt.Println("response Status:", resp.Status)
 }
@@ -84,33 +86,36 @@ func readUsers() {
 	//fmt.Println("Response Status:", resp.Status())
 }
 
-func getAllRecords(dbAddress string) []User {
-	sessionCloud, err := mgo.Dial(dbAddress)
+func getAllRecords(dbAddress string) []users.User {
+	session, err := mgo.Dial(dbAddress)
     if err != nil {
     	panic(err)
     }
+    fmt.Println("Established connection to => ", dbAddress)
 
-    defer sessionCloud.Close()
+    defer session.Close()
 
     c := session.DB("users").C("customers")
 
-    var results []User
+    var results []users.User
     err = c.Find(nil).All(&results)
 
-    if err != nil
+    if err != nil {
     	panic(err)
-	else
+    } else {
 		return results
+	}
 }
 
 func verifyOrder() {
-	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020?replicaSet=rs0")
+	fmt.Println("going to verify records")
+	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020")
 	edgeRecords	 := getAllRecords("localhost:27021")
 
 	fmt.Println("Cloud length => ", len(cloudRecords))
-	fmt.Println("Edge length => ", len(cloudRecords))
+	fmt.Println("Edge length => ", len(edgeRecords))
 	
-	
+
 	//check if both lists have the same length
 	//compare the value of each list position to see if they match
 }
@@ -120,6 +125,7 @@ func main() {
 	for i := 0; i < 5; i++ {
 		go startClient(i)
 	}
+	fmt.Println("Main: Waiting for workers to finish")
 	wg.Wait()
 
 	verifyOrder();
