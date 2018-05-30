@@ -7,6 +7,9 @@ import (
 	"sync"
 	"net/http"
 	"bytes"
+	"github.com/DavidMealha/mongo-stress-test/users"
+	"gopkg.in/mgo.v2"
+	"io/ioutil"
 )
 
 var (
@@ -19,19 +22,19 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
-			fmt.Printf("Do write in Client %v =>", clientNr)
-			fmt.Print(time.Now())
-			fmt.Println()
+			//fmt.Printf("Do write in Client %v =>", clientNr)
+			//fmt.Print(time.Now())
+			//fmt.Println()
 			insertUser()
 		} else {
-			fmt.Printf("Do read in Client %v =>", clientNr)
-			fmt.Print(time.Now())
-			fmt.Println()
+			//fmt.Printf("Do read in Client %v =>", clientNr)
+			//fmt.Print(time.Now())
+			//fmt.Println()
 		}
-		//time.Sleep(1000 * time.Millisecond)
+		time.Sleep(1000 * time.Millisecond)
 	}
 	defer wg.Done()
 }
@@ -43,8 +46,6 @@ func insertUser() {
 			 `","email":"` + getRandomString(10) + 
 			 `","firstName":"` + getRandomString(6) + 
 			 `","lastName":"` + getRandomString(8) + `"}`
-
- 	fmt.Println("json =>", str)
 
 	var jsonStr = []byte(str)
 
@@ -59,14 +60,15 @@ func insertUser() {
 	}
 	defer resp.Body.Close()
 
-	//body, err := ioutil.ReadAll(resp.Body)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	fmt.Println("response Status:", resp.Status)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err, body)
+	}
+	fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
+	//fmt.Println("response Status:", resp.Status)
 }
 
-func getRandomString(size int) string{
+func getRandomString(size int) string {
 	lettersLen := len(letters)
 	var str string
 	for i := 0; i < size; i++ {
@@ -84,10 +86,48 @@ func readUsers() {
 	//fmt.Println("Response Status:", resp.Status())
 }
 
+func getAllRecords(dbAddress string) []users.User {
+	session, err := mgo.Dial(dbAddress)
+    if err != nil {
+    	panic(err)
+    }
+    fmt.Println("Established connection to => ", dbAddress)
+
+    defer session.Close()
+
+    c := session.DB("users").C("customers")
+
+    var results []users.User
+    err = c.Find(nil).All(&results)
+
+    if err != nil {
+    	panic(err)
+    } else {
+		return results
+	}
+}
+
+func verifyOrder() {
+	fmt.Println("going to verify records")
+	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020")
+	edgeRecords	 := getAllRecords("localhost:27021")
+
+	fmt.Println("Cloud length => ", len(cloudRecords))
+	fmt.Println("Edge length => ", len(edgeRecords))
+	
+
+	//check if both lists have the same length
+	//compare the value of each list position to see if they match
+}
+
 func main() {
 	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		go startClient(i)
 	}
+	fmt.Println("Main: Waiting for workers to finish")
 	wg.Wait()
+
+	verifyOrder();
+    fmt.Println("Finished.")
 }
