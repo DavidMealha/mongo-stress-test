@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"github.com/DavidMealha/mongo-stress-test/users"
 	"gopkg.in/mgo.v2"
-	"io/ioutil"
 )
 
 var (
@@ -22,7 +21,7 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 50; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
 			//fmt.Printf("Do write in Client %v =>", clientNr)
@@ -34,7 +33,7 @@ func startClient(clientNr int) {
 			//fmt.Print(time.Now())
 			//fmt.Println()
 		}
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 	defer wg.Done()
 }
@@ -60,10 +59,10 @@ func insertUser() {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err, body)
-	}
+	//body, err := ioutil.ReadAll(resp.Body)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
 	fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
 	//fmt.Println("response Status:", resp.Status)
 }
@@ -86,7 +85,7 @@ func readUsers() {
 	//fmt.Println("Response Status:", resp.Status())
 }
 
-func getAllRecords(dbAddress string) []users.User {
+func getAllRecords(dbAddress string, collection string) []users.User {
 	session, err := mgo.Dial(dbAddress)
     if err != nil {
     	panic(err)
@@ -108,26 +107,40 @@ func getAllRecords(dbAddress string) []users.User {
 }
 
 func verifyOrder() {
-	fmt.Println("going to verify records")
-	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020")
-	edgeRecords	 := getAllRecords("localhost:27021")
+	cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020", "customers")
+	edgeRecords	 := getAllRecords("localhost:27021", "customers")
 
 	fmt.Println("Cloud length => ", len(cloudRecords))
 	fmt.Println("Edge length => ", len(edgeRecords))
-	
 
-	//check if both lists have the same length
-	//compare the value of each list position to see if they match
+	arrayLength := len(edgeRecords)
+	positiveMatch := 0
+	negativeMatch := 0
+
+	for i := 0; i < arrayLength; i++ {
+		if (cloudRecords[i].Username == edgeRecords[i].Username) {
+			positiveMatch += 1
+		} else {
+			negativeMatch += 1
+			fmt.Printf("Cloud => %v | Edge => %v", string(cloudRecords[i].Username), edgeRecords[i].Username)
+			fmt.Println(" | Negative Match on line => ", i)
+		}
+	}
+
+	fmt.Println("Positive matches => ", positiveMatch)
+	fmt.Println("Negative matches => ", negativeMatch)
 }
 
 func main() {
-	wg.Add(10)
-	for i := 0; i < 5; i++ {
-		go startClient(i)
-	}
-	fmt.Println("Main: Waiting for workers to finish")
-	wg.Wait()
+	//wg.Add(30)
+	//for i := 0; i < 30; i++ {
+	//	go startClient(i)
+	//}
+	//wg.Wait()
 
+	fmt.Println("Waiting 60 seconds before checking order.")
+	//time.Sleep(60000 * time.Millisecond)
 	verifyOrder();
+
     fmt.Println("Finished.")
 }
