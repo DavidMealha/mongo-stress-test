@@ -21,7 +21,7 @@ func init() {
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 3; i++ {
 		rand := rand.Intn(2)
 		if rand == 0 {
 			//fmt.Printf("Do write in Client %v =>", clientNr)
@@ -132,11 +132,11 @@ func verifyOrder() {
 }
 
 func main() {
-	//wg.Add(30)
-	//for i := 0; i < 30; i++ {
-	//	go startClient(i)
-	//}
-	//wg.Wait()
+	wg.Add(5)
+	for i := 0; i < 5; i++ {
+		go startClient(i)
+	}
+	wg.Wait()
 
 	fmt.Println("Waiting 60 seconds before checking order.")
 	//time.Sleep(60000 * time.Millisecond)
