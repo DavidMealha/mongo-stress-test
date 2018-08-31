@@ -18,10 +18,10 @@ var (
 )
 
 const (
-  DATABASE_ADDRESS  = "localhost:27021"
+  DATABASE_ADDRESS  = "localhost:27019"
   DATABASE_NAME     = "users"
   COLLECTION_NAME   = "customers"
-  PROXY_ADDRESS     = "http://replication-manager:8126"
+  PROXY_ADDRESS     = "http://localhost:8127"
   WRITE_RATE        = 50
 )
 
@@ -45,19 +45,14 @@ func startClient(clientNr int) {
 }
 
 func insertUser() {
-  url := "http://replication-manager:8126"
+  start := time.Now()
+  url := PROXY_ADDRESS
   str := `{"operationType":"INSERT",` + 
          `"fullDocument":{"name":"` + getRandomString(12) + 
          `","username":"` + getRandomString(14) +
          `"},"ns":{"coll":"` + COLLECTION_NAME +
          `","db":"` + DATABASE_NAME +
          `"},"documentKey":{"_id":"` + getRandomString(6) + `"}}`
-
-  // str := `{"username":"` + getRandomString(8) + 
-  //         `","password":"` + getRandomString(12) + 
-  //         `","email":"` + getRandomString(10) + 
-  //         `","firstName":"` + getRandomString(6) + 
-  //         `","lastName":"` + getRandomString(8) + `"}`
 
   var jsonStr = []byte(str)
 
@@ -77,9 +72,12 @@ func insertUser() {
   //	fmt.Println(err)
   //}
   fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
+  elapsed := time.Since(start)
+  fmt.Println("Took ", elapsed, " ms.")
 }
 
 func readUser() {
+  start := time.Now()
   session, err := mgo.Dial(DATABASE_ADDRESS)
 
   if err != nil {
@@ -91,14 +89,16 @@ func readUser() {
 
   c := session.DB(DATABASE_NAME).C(COLLECTION_NAME)
 
-  result := User{}
-  err = c.FindId(bson.M{ "_id": bson.ObjectIdHex("") }).One(&result)
+  var result users.User
+  err = c.FindId(bson.M{ "_id": bson.ObjectIdHex("537f700b537461b70c5f0000") }).One(&result)
 
   if err != nil {
-    panic(err)
+    fmt.Println("error retrieving record =>", err)
   } else {
-    return &result
+    fmt.Println("result =>", &result)
   }
+  elapsed := time.Since(start)
+  fmt.Println("Took ", elapsed, " ms.")
 }
 
 func getRandomString(size int) string {
