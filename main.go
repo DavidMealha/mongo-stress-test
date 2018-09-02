@@ -15,6 +15,8 @@ import (
 var (
 	wg sync.WaitGroup
 	letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
+        writeLatencies []string
+        readLatencies []string
 )
 
 const (
@@ -33,10 +35,10 @@ func startClient(clientNr int) {
 	for i := 0; i < 10; i++ {
 		rand := rand.Intn(100)
 		if rand < WRITE_RATE {
-			fmt.Printf("Do write in Client %v =>", clientNr)
+			fmt.Printf("Do write in Client %v \n", clientNr)
 			insertUser()
 		} else {
-			fmt.Printf("Do read in Client %v =>", clientNr)
+			fmt.Printf("Do read in Client %v \n", clientNr)
       readUser()
 		}
 		time.Sleep(200 * time.Millisecond)
@@ -49,7 +51,7 @@ func insertUser() {
   url := PROXY_ADDRESS
   str := `{"operationType":"INSERT",` + 
          `"fullDocument":{"name":"` + getRandomString(12) + 
-         `","username":"` + getRandomString(14) +
+         `","username":"` + getRandomString(20) +
          `"},"ns":{"coll":"` + COLLECTION_NAME +
          `","db":"` + DATABASE_NAME +
          `"},"documentKey":{"_id":"` + getRandomString(6) + `"}}`
@@ -67,13 +69,10 @@ func insertUser() {
   }
   defer resp.Body.Close()
 
-  //body, err := ioutil.ReadAll(resp.Body)
-  //if err != nil {
-  //	fmt.Println(err)
-  //}
-  fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
+  //fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
   elapsed := time.Since(start)
-  fmt.Println("Took ", elapsed, " ms.")
+  writeLatencies = append(writeLatencies, elapsed.String())
+  //fmt.Println("Took ", elapsed, " ms.")
 }
 
 func readUser() {
@@ -95,10 +94,11 @@ func readUser() {
   if err != nil {
     fmt.Println("error retrieving record =>", err)
   } else {
-    fmt.Println("result =>", &result)
+    //fmt.Println("result =>", &result)
   }
   elapsed := time.Since(start)
-  fmt.Println("Took ", elapsed, " ms.")
+  readLatencies = append(readLatencies, elapsed.String())
+  //fmt.Println("Took ", elapsed, " ms.")
 }
 
 func getRandomString(size int) string {
@@ -177,6 +177,8 @@ func main() {
   fmt.Println("Waiting 60 seconds before checking order.")
   //time.Sleep(60000 * time.Millisecond)
   // verifyOrder();
+  fmt.Printf("Write latencies %\n", writeLatencies)
+  fmt.Printf("Read latencias %\n", readLatencies)
 
   fmt.Println("Finished.")
 }
