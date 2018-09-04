@@ -24,6 +24,7 @@ const (
   DATABASE_NAME     = "users"
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8127"
+  SERVICE_ADDRESS   = "http://localhost:8080"
   WRITE_RATE        = 50
 )
 
@@ -47,6 +48,45 @@ func startClient(clientNr int) {
 }
 
 func insertUser() {
+  start := time.Now()
+
+  str := `{"username":"` + getRandomString(8) + 
+         `","password":"` + getRandomString(12) + 
+         `","email":"` + getRandomString(10) + 
+         `","firstName":"` + getRandomString(6) + 
+         `","lastName":"` + getRandomString(8) + `"}`
+
+  var jsonStr = []byte(str)
+
+  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+  req.Header.Set("Content-Type", "application/json")
+
+  client := &http.Client{}
+  resp, err := client.Do(req)
+
+  if err != nil {
+    fmt.Println(err)
+  }
+  defer resp.Body.Close()
+
+  elapsed := time.Since(start)
+  readLatencies = append(readLatencies, elapsed.String())
+}
+
+func readUser() {
+  start := time.Now()
+  resp, err := http.NewRequest("GET", SERVICE_ADDRESS + getRandomString(10))
+  
+  if err != nil {
+    fmt.Println(err)
+  }
+
+  fmt.Println("Response:", resp.body())
+  elapsed := time.Since(start)
+  readLatencies = append(readLatencies, elapsed.String())
+}
+
+func insertUserFromWrapper() {
   start := time.Now()
   url := PROXY_ADDRESS
   str := `{"operationType":"INSERT",` + 
@@ -75,14 +115,13 @@ func insertUser() {
   //fmt.Println("Took ", elapsed, " ms.")
 }
 
-func readUser() {
+func readUserFromDatabase() {
   start := time.Now()
   session, err := mgo.Dial(DATABASE_ADDRESS)
 
   if err != nil {
     panic(err)
   }
-  fmt.Println("Established connection to => ", DATABASE_ADDRESS)
 
   defer session.Close()
 
@@ -111,60 +150,8 @@ func getRandomString(size int) string {
 	return str
 }
 
-func readUsers() {
-	// /customers/{id}
-	
-	//resp, err := http.Get("localhost:8080/customers")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("Response Status:", resp.Status())
-}
-
-func getAllRecords(dbAddress string, collection string) []users.User {
-	session, err := mgo.Dial(dbAddress)
-    if err != nil {
-    	panic(err)
-    }
-    fmt.Println("Established connection to => ", dbAddress)
-
-    defer session.Close()
-
-    c := session.DB("users").C("customers")
-
-    var results []users.User
-    err = c.Find(nil).All(&results)
-
-    if err != nil {
-    	panic(err)
-    } else {
-		return results
-	}
-}
-
-func verifyOrder() {
-  cloudRecords := getAllRecords("localhost:27018,localhost:27019,localhost:27020", "customers")
-  edgeRecords	 := getAllRecords("localhost:27021", "customers")
-
-  fmt.Println("Cloud length => ", len(cloudRecords))
-  fmt.Println("Edge length => ", len(edgeRecords))
-
-  arrayLength := len(edgeRecords)
-  positiveMatch := 0
-  negativeMatch := 0
-
-  for i := 0; i < arrayLength; i++ {
-    if (cloudRecords[i].Username == edgeRecords[i].Username) {
-      positiveMatch += 1
-    } else {
-      negativeMatch += 1
-      fmt.Printf("Cloud => %v | Edge => %v", string(cloudRecords[i].Username), edgeRecords[i].Username)
-      fmt.Println(" | Negative Match on line => ", i)
-    }
-  }
-
-  fmt.Println("Positive matches => ", positiveMatch)
-  fmt.Println("Negative matches => ", negativeMatch)
+func getRandomUUID() {
+  return "537f700b537461b70c5f0000";
 }
 
 func main() {
@@ -174,9 +161,6 @@ func main() {
   }
   wg.Wait()
 
-  fmt.Println("Waiting 60 seconds before checking order.")
-  //time.Sleep(60000 * time.Millisecond)
-  // verifyOrder();
   fmt.Printf("Write latencies %\n", writeLatencies)
   fmt.Printf("Read latencias %\n", readLatencies)
 
