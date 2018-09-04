@@ -1,22 +1,22 @@
 package main
 
 import (
-	"fmt"
-	"time"
-	"math/rand"
-	"sync"
-	"net/http"
-	"bytes"
-	"github.com/DavidMealha/mongo-stress-test/users"
+  "fmt"
+  "time"
+  "math/rand"
+  "sync"
+  "net/http"
+  "bytes"
+  "github.com/DavidMealha/mongo-stress-test/users"
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
 )
 
 var (
-	wg sync.WaitGroup
-	letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
-        writeLatencies []string
-        readLatencies []string
+  wg sync.WaitGroup
+  letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
+  writeLatencies []string
+  readLatencies []string
 )
 
 const (
@@ -24,27 +24,27 @@ const (
   DATABASE_NAME     = "users"
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8127"
-  SERVICE_ADDRESS   = "http://localhost:8080"
+  SERVICE_ADDRESS   = "http://localhost:8080/"
   WRITE_RATE        = 50
 )
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+  rand.Seed(time.Now().UnixNano())
 }
 
 func startClient(clientNr int) {
-	for i := 0; i < 10; i++ {
-		rand := rand.Intn(100)
-		if rand < WRITE_RATE {
-			fmt.Printf("Do write in Client %v \n", clientNr)
-			insertUser()
-		} else {
-			fmt.Printf("Do read in Client %v \n", clientNr)
+  for i := 0; i < 10; i++ {
+    rand := rand.Intn(100)
+    if rand < WRITE_RATE {
+      fmt.Printf("Do write in Client %v \n", clientNr)
+      insertUser()
+    } else {
+      fmt.Printf("Do read in Client %v \n", clientNr)
       readUser()
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-	defer wg.Done()
+    }
+    time.Sleep(200 * time.Millisecond)
+  }
+  defer wg.Done()
 }
 
 func insertUser() {
@@ -58,7 +58,7 @@ func insertUser() {
 
   var jsonStr = []byte(str)
 
-  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+  req, err := http.NewRequest("POST", SERVICE_ADDRESS + "customers", bytes.NewBuffer(jsonStr))
   req.Header.Set("Content-Type", "application/json")
 
   client := &http.Client{}
@@ -75,7 +75,7 @@ func insertUser() {
 
 func readUser() {
   start := time.Now()
-  resp, err := http.NewRequest("GET", SERVICE_ADDRESS + getRandomString(10))
+  resp, err := http.Get(SERVICE_ADDRESS + "customers/" + getRandomString(10))
   
   if err != nil {
     fmt.Println(err)
@@ -150,7 +150,7 @@ func getRandomString(size int) string {
 	return str
 }
 
-func getRandomUUID() {
+func getRandomUUID() string {
   return "537f700b537461b70c5f0000";
 }
 
