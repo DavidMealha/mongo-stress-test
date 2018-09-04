@@ -80,10 +80,12 @@ func readUser() {
   if err != nil {
     fmt.Println(err)
   }
+  defer resp.Body.Close()
 
-  fmt.Println("Response:", resp.body())
   elapsed := time.Since(start)
   readLatencies = append(readLatencies, elapsed.String())
+  
+  fmt.Println("Response:", string(ioutil.ReadAll(resp.Body)))
 }
 
 func insertUserFromWrapper() {
