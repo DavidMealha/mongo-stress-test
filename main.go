@@ -15,8 +15,8 @@ import (
 var (
   wg sync.WaitGroup
   letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
-  writeLatencies []string
-  readLatencies []string
+  writeLatencies []int
+  readLatencies []int
 )
 
 const (
@@ -70,7 +70,7 @@ func insertUser() {
   defer resp.Body.Close()
 
   elapsed := time.Since(start)
-  readLatencies = append(readLatencies, elapsed.String())
+  readLatencies = append(readLatencies, int(elapsed.String()))
 }
 
 func readUser() {
@@ -83,7 +83,7 @@ func readUser() {
   defer resp.Body.Close()
 
   elapsed := time.Since(start)
-  readLatencies = append(readLatencies, elapsed.String())
+  readLatencies = append(readLatencies, int(elapsed.String()))
   
   fmt.Println("Response:", string(ioutil.ReadAll(resp.Body)))
 }
@@ -113,7 +113,7 @@ func insertUserFromWrapper() {
 
   //fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
   elapsed := time.Since(start)
-  writeLatencies = append(writeLatencies, elapsed.String())
+  writeLatencies = append(writeLatencies, elapsed)
   //fmt.Println("Took ", elapsed, " ms.")
 }
 
@@ -156,6 +156,44 @@ func getRandomUUID() string {
   return "537f700b537461b70c5f0000";
 }
 
+func printStats() {
+  const writeRate = WRITE_RATE / 100;
+  const readRate = 1 - writeRate;
+
+  //calc average write latency
+  var avgWriteLatency = getAverage(writeLatencies);
+  //calc average read latency
+  var avgReadLatency = getAverage(readLatencies);
+
+  //throughputWrite = 1000 / avgWriteLatency
+  var throughputWrite = 1000 / avgWriteLatency;
+  //throughputRead = 1000 / avgReadLatency
+  var throughputRead = 1000 / avgReadLatency;
+
+  // sum = (writeRate * throughputWrite) + (readRate * throughputRead)
+  var sum = (writeRate * throughputWrite) + (readRate * throughputRead)
+
+  fmt.Println("==================================");
+  fmt.Println("Average Write Latency =>", avgWriteLatency);
+  fmt.Println("==================================");
+  fmt.Println("Average Read Latency =>", avgReadLatency);
+  fmt.Println("==================================");
+  fmt.Println("Throughput Write =>", throughputWrite);
+  fmt.Println("==================================");
+  fmt.Println("Throughput Read =>", throughputRead);
+  fmt.Println("==================================");
+  fmt.Println("Total Throughput =>", sum);
+}
+
+func getAverage(array []int) int{
+  fmt.Println("array => ", array);
+  var sum int;
+  for i := 0; i < len(array); i++ {
+    sum += array[i];
+  }
+  return sum / len(array)
+}
+
 func main() {
   wg.Add(5)
   for i := 0; i < 5; i++ {
@@ -163,8 +201,9 @@ func main() {
   }
   wg.Wait()
 
-  fmt.Printf("Write latencies %\n", writeLatencies)
-  fmt.Printf("Read latencias %\n", readLatencies)
+  printStats();
+  // fmt.Printf("Write latencies %\n", writeLatencies)
+  // fmt.Printf("Read latencias %\n", readLatencies)
 
   fmt.Println("Finished.")
 }
