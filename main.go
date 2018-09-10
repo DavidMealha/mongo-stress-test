@@ -7,6 +7,7 @@ import (
   "sync"
   "net/http"
   "bytes"
+  "io/ioutil"
   "github.com/DavidMealha/mongo-stress-test/users"
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
@@ -25,7 +26,7 @@ const (
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8127"
   SERVICE_ADDRESS   = "http://localhost:8080/"
-  WRITE_RATE        = 50
+  WRITE_RATE        = 100
 )
 
 func init() {
@@ -33,7 +34,7 @@ func init() {
 }
 
 func startClient(clientNr int) {
-  for i := 0; i < 10; i++ {
+  for i := 0; i < 1; i++ {
     rand := rand.Intn(100)
     if rand < WRITE_RATE {
       fmt.Printf("Do write in Client %v \n", clientNr)
@@ -42,7 +43,7 @@ func startClient(clientNr int) {
       fmt.Printf("Do read in Client %v \n", clientNr)
       readUser()
     }
-    time.Sleep(200 * time.Millisecond)
+    time.Sleep(500 * time.Millisecond)
   }
   defer wg.Done()
 }
@@ -58,7 +59,7 @@ func insertUser() {
 
   var jsonStr = []byte(str)
 
-  req, err := http.NewRequest("POST", SERVICE_ADDRESS + "customers", bytes.NewBuffer(jsonStr))
+  req, err := http.NewRequest("POST", SERVICE_ADDRESS + "register", bytes.NewBuffer(jsonStr))
   req.Header.Set("Content-Type", "application/json")
 
   client := &http.Client{}
@@ -70,22 +71,34 @@ func insertUser() {
   defer resp.Body.Close()
 
   elapsed := time.Since(start)
+<<<<<<< HEAD
   readLatencies = append(readLatencies, int(elapsed.String()))
+=======
+  writeLatencies = append(writeLatencies, elapsed.String())
+>>>>>>> c825f6a02a26dcec46cec38a514ea82704e887f1
 }
 
 func readUser() {
   start := time.Now()
   resp, err := http.Get(SERVICE_ADDRESS + "customers/" + getRandomString(10))
-  
+
   if err != nil {
     fmt.Println(err)
   }
   defer resp.Body.Close()
 
   elapsed := time.Since(start)
+<<<<<<< HEAD
   readLatencies = append(readLatencies, int(elapsed.String()))
   
   fmt.Println("Response:", string(ioutil.ReadAll(resp.Body)))
+=======
+  readLatencies = append(readLatencies, elapsed.String())
+
+  parsedBody, err := ioutil.ReadAll(resp.Body)
+  body := string(parsedBody)
+  fmt.Println("Response:", body)
+>>>>>>> c825f6a02a26dcec46cec38a514ea82704e887f1
 }
 
 func insertUserFromWrapper() {
@@ -195,8 +208,8 @@ func getAverage(array []int) int{
 }
 
 func main() {
-  wg.Add(5)
-  for i := 0; i < 5; i++ {
+  wg.Add(1)
+  for i := 0; i < 1; i++ {
     go startClient(i)
   }
   wg.Wait()
