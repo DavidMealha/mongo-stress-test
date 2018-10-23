@@ -11,6 +11,7 @@ import (
   "github.com/DavidMealha/mongo-stress-test/users"
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
+  "encoding/hex"
 )
 
 var (
@@ -26,6 +27,7 @@ const (
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8127"
   SERVICE_ADDRESS   = "http://localhost:8080/"
+  //SERVICE_ADDRESS   = "http://52.213.179.93:8080/"
   WRITE_RATE        = 50
 )
 
@@ -38,19 +40,19 @@ func startClient(clientNr int) {
     rand := rand.Intn(100)
     if rand < WRITE_RATE {
       //fmt.Printf("Do write in Client %v \n", clientNr)
-      insertUser()
+      insertUser(clientNr)
     } else {
       //fmt.Printf("Do read in Client %v \n", clientNr)
       readUser()
     }
-    time.Sleep(500 * time.Millisecond)
+    //time.Sleep(30 * time.Millisecond)
   }
   defer wg.Done()
 }
 
-func insertUser() {
+func insertUser(clientNr int) {
   start := time.Now()
-
+  fmt.Printf("Client %v sent request at %v\n", clientNr, start)
   str := `{"username":"` + getRandomString(8) + 
          `","password":"` + getRandomString(12) + 
          `","email":"` + getRandomString(10) + 
@@ -64,6 +66,7 @@ func insertUser() {
 
   client := &http.Client{}
   resp, err := client.Do(req)
+  fmt.Printf("Service response to client %v sent request at %v\n", clientNr, start)
 
   if err != nil {
     fmt.Println(err)
@@ -76,7 +79,7 @@ func insertUser() {
 
 func readUser() {
   start := time.Now()
-  resp, err := http.Get(SERVICE_ADDRESS + "customers/" + getRandomString(10))
+  resp, err := http.Get(SERVICE_ADDRESS + "customers/" + randomHex(12))
 
   if err != nil {
     fmt.Println(err)
@@ -90,6 +93,14 @@ func readUser() {
   body := string(parsedBody)
   fmt.Println("Response:", body)
 
+}
+
+func randomHex(n int) string {
+  bytes := make([]byte, n)
+  if _, err := rand.Read(bytes); err != nil {
+    return "537f700b537461b70c5f0000"
+  }
+  return hex.EncodeToString(bytes)
 }
 
 func insertUserFromWrapper() {
@@ -176,6 +187,7 @@ func printStats() {
 
   // sum = (writeRate * throughputWrite) + (readRate * throughputRead)
   var sum = (writeRate * float64(throughputWrite)) + (readRate * float64(throughputRead))
+  //var sum = (writeRate * float64(throughputWrite))
 
   fmt.Println("=======================================");
   fmt.Println("============= STATISTICS ==============");
@@ -204,11 +216,18 @@ func getAverage(array []int) int{
 }
 
 func main() {
-  wg.Add(5)
-  for i := 0; i < 5; i++ {
+  //start time
+  start := time.Now()
+
+  wg.Add(2)
+  for i := 0; i < 2; i++ {
     go startClient(i)
   }
   wg.Wait()
+
+  //end time
+  elapsed := time.Since(start)
+  fmt.Println("Took ", elapsed, " ms to perform 2500 operations.")
 
   printStats();
   // fmt.Printf("Write latencies %\n", writeLatencies)
