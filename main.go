@@ -12,6 +12,7 @@ import (
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
   "encoding/hex"
+  "strconv"
 )
 
 var (
@@ -25,7 +26,7 @@ const (
   DATABASE_ADDRESS  = "localhost:27019"
   DATABASE_NAME     = "users"
   COLLECTION_NAME   = "customers"
-  PROXY_ADDRESS     = "http://localhost:8127"
+  PROXY_ADDRESS     = "http://localhost:8126"
   SERVICE_ADDRESS   = "http://localhost:8080/"
   //SERVICE_ADDRESS   = "http://52.213.179.93:8080/"
   WRITE_RATE        = 50
@@ -35,12 +36,12 @@ func init() {
   rand.Seed(time.Now().UnixNano())
 }
 
-func startClient(clientNr int) {
-  for i := 0; i < 5; i++ {
+func startClient(client *http.Client, clientNr int) {
+  for i := 0; i < 25; i++ {
     rand := rand.Intn(100)
     if rand < WRITE_RATE {
       //fmt.Printf("Do write in Client %v \n", clientNr)
-      insertUser(clientNr)
+      insertUserFromWrapper(client)
     } else {
       //fmt.Printf("Do read in Client %v \n", clientNr)
       readUser()
@@ -50,9 +51,9 @@ func startClient(clientNr int) {
   defer wg.Done()
 }
 
-func insertUser(clientNr int) {
+func insertUser(client *http.Client, clientNr int) {
   start := time.Now()
-  fmt.Printf("Client %v sent request at %v\n", clientNr, start)
+  //fmt.Printf("Client %v sent request at %v\n", clientNr, start)
   str := `{"username":"` + getRandomString(8) + 
          `","password":"` + getRandomString(12) + 
          `","email":"` + getRandomString(10) + 
@@ -63,18 +64,22 @@ func insertUser(clientNr int) {
 
   req, err := http.NewRequest("POST", SERVICE_ADDRESS + "register", bytes.NewBuffer(jsonStr))
   req.Header.Set("Content-Type", "application/json")
+  req.Header.Set("Connection", "keep-alive")
 
-  client := &http.Client{}
+  //client := &http.Client{}
   resp, err := client.Do(req)
-  fmt.Printf("Service response to client %v sent request at %v\n", clientNr, start)
+  //fmt.Printf("Service response to client %v sent request at %v\n", clientNr, start)
 
   if err != nil {
     fmt.Println(err)
   }
+  parsedBody,err := ioutil.ReadAll(resp.Body)
   defer resp.Body.Close()
 
   elapsed := int(time.Since(start) / time.Millisecond)
   writeLatencies = append(writeLatencies, elapsed)
+  body := string(parsedBody)
+  fmt.Println("Insert Response", body)
 }
 
 func readUser() {
@@ -103,22 +108,27 @@ func randomHex(n int) string {
   return hex.EncodeToString(bytes)
 }
 
-func insertUserFromWrapper() {
+func insertUserFromWrapper(client *http.Client) {
   start := time.Now()
   url := PROXY_ADDRESS
   str := `{"operationType":"INSERT",` + 
-         `"fullDocument":{"name":"` + getRandomString(12) + 
-         `","username":"` + getRandomString(20) +
-         `"},"ns":{"coll":"` + COLLECTION_NAME +
-         `","db":"` + DATABASE_NAME +
-         `"},"documentKey":{"_id":"` + getRandomString(6) + `"}}`
+          `"fullDocument":{"username":"` + getRandomString(12) + 
+          `","password":"` + getRandomString(12) +
+          `","email":"` + getRandomString(12) +
+          `","firstName":"` + getRandomString(12) +
+          `","lastName":"` + getRandomString(12) +
+          `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
+          `"},"ns":{"coll":"` + COLLECTION_NAME +
+          `","db":"` + DATABASE_NAME +
+          `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
 
   var jsonStr = []byte(str)
 
   req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
   req.Header.Set("Content-Type", "application/json")
+  req.Header.Set("Connection", "keep-alive")
 
-  client := &http.Client{}
+  //client := &http.Client{}
   resp, err := client.Do(req)
 
   if err != nil {
@@ -127,9 +137,8 @@ func insertUserFromWrapper() {
   defer resp.Body.Close()
 
   //fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
-  elapsed := time.Since(start)
-  //writeLatencies = append(writeLatencies, elapsed)
-  fmt.Println("Took ", elapsed, " ms.")
+  elapsed := int(time.Since(start) / time.Millisecond)
+  writeLatencies = append(writeLatencies, elapsed)
 }
 
 func readUserFromDatabase() {
@@ -219,9 +228,10 @@ func main() {
   //start time
   start := time.Now()
 
-  wg.Add(2)
-  for i := 0; i < 2; i++ {
-    go startClient(i)
+  wg.Add(10)
+  for i := 0; i < 10; i++ {
+    client := &http.Client{}
+    go startClient(client, i)
   }
   wg.Wait()
 
