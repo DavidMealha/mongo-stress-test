@@ -2,6 +2,7 @@ package main
 
 import (
   "fmt"
+  "flag"
   "time"
   "math/rand"
   "sync"
@@ -27,21 +28,22 @@ const (
   DATABASE_NAME     = "users"
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8126"
-  SERVICE_ADDRESS   = "http://localhost:8080/"
+  //SERVICE_ADDRESS   = "http://localhost:8080/"
+  SERVICE_ADDRESS   = "http://3.120.161.145:8080/"
   //SERVICE_ADDRESS   = "http://52.213.179.93:8080/"
-  WRITE_RATE        = 50
+  WRITE_RATE        = 10
 )
 
 func init() {
   rand.Seed(time.Now().UnixNano())
 }
 
-func startClient(client *http.Client, clientNr int) {
-  for i := 0; i < 25; i++ {
+func startClient(client *http.Client, clientNr int, nrOperations int) {
+  for i := 0; i < nrOperations; i++ {
     rand := rand.Intn(100)
     if rand < WRITE_RATE {
       //fmt.Printf("Do write in Client %v \n", clientNr)
-      insertUserFromWrapper(client)
+      insertUser(client)
     } else {
       //fmt.Printf("Do read in Client %v \n", clientNr)
       readUser()
@@ -51,7 +53,7 @@ func startClient(client *http.Client, clientNr int) {
   defer wg.Done()
 }
 
-func insertUser(client *http.Client, clientNr int) {
+func insertUser(client *http.Client) {
   start := time.Now()
   //fmt.Printf("Client %v sent request at %v\n", clientNr, start)
   str := `{"username":"` + getRandomString(8) + 
@@ -76,7 +78,7 @@ func insertUser(client *http.Client, clientNr int) {
   parsedBody,err := ioutil.ReadAll(resp.Body)
   defer resp.Body.Close()
 
-  elapsed := int(time.Since(start) / time.Millisecond)
+  elapsed := int(time.Since(start) / time.Microsecond)
   writeLatencies = append(writeLatencies, elapsed)
   body := string(parsedBody)
   fmt.Println("Insert Response", body)
@@ -91,7 +93,7 @@ func readUser() {
   }
   defer resp.Body.Close()
 
-  elapsed := int(time.Since(start) / time.Millisecond)
+  elapsed := int(time.Since(start) / time.Microsecond)
 
   readLatencies = append(readLatencies, elapsed)
   parsedBody, err := ioutil.ReadAll(resp.Body)
@@ -228,10 +230,17 @@ func main() {
   //start time
   start := time.Now()
 
-  wg.Add(10)
-  for i := 0; i < 10; i++ {
+  var nrClients int;
+  var nrOperations int;
+
+  flag.IntVar(&nrClients, "clients", 5, "Number of clients");
+  flag.IntVar(&nrOperations, "operations", 50, "Number of operations");
+  flag.Parse();
+
+  wg.Add(nrClients)
+  for i := 0; i < nrClients; i++ {
     client := &http.Client{}
-    go startClient(client, i)
+    go startClient(client, i, nrOperations)
   }
   wg.Wait()
 
