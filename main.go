@@ -21,6 +21,7 @@ var (
   letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
   writeLatencies []int
   readLatencies []int
+  ids = []string{"537f700b537461b70c5f0000","537f700b537461b70c5f0001","537f700b537461b70c5f0002","537f700b537461b70c5f0003"}
 )
 
 const (
@@ -29,7 +30,7 @@ const (
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8126"
   //SERVICE_ADDRESS   = "http://localhost:8080/"
-  SERVICE_ADDRESS   = "http://3.120.161.145:8080/"
+  //SERVICE_ADDRESS   = "http://3.120.161.145:8080/"
   //SERVICE_ADDRESS   = "http://52.213.179.93:8080/"
   WRITE_RATE        = 10
 )
@@ -41,14 +42,27 @@ func init() {
 func startClient(client *http.Client, clientNr int, nrOperations int) {
   for i := 0; i < nrOperations; i++ {
     rand := rand.Intn(100)
+
     if rand < WRITE_RATE {
-      //fmt.Printf("Do write in Client %v \n", clientNr)
-      insertUser(client)
+      // insertUser(client)
+  
+      randOp := rand / 25
+
+      if randOp == 1 {
+        insertUserFromWrapper(client)
+      } else if randOp == 2 {
+        fmt.Println("Update operation")
+        //updateUserFromWrapper(client)
+      } else if randOp == 3 {
+        fmt.Println("Replace operation")
+        // replaceUserFromWrapper(client)
+      } else {
+        fmt.Println("Delete operation")
+        // deleteUserFromWrapper(client)
+      }
     } else {
-      //fmt.Printf("Do read in Client %v \n", clientNr)
-      readUser()
+      readUserFromDatabase()
     }
-    //time.Sleep(30 * time.Millisecond)
   }
   defer wg.Done()
 }
@@ -130,15 +144,12 @@ func insertUserFromWrapper(client *http.Client) {
   req.Header.Set("Content-Type", "application/json")
   req.Header.Set("Connection", "keep-alive")
 
-  //client := &http.Client{}
   resp, err := client.Do(req)
 
   if err != nil {
     fmt.Println(err)
   }
   defer resp.Body.Close()
-
-  //fmt.Println("INSERT =>", str, " - AT => ", time.Now().UnixNano())
   elapsed := int(time.Since(start) / time.Millisecond)
   writeLatencies = append(writeLatencies, elapsed)
 }
@@ -163,9 +174,8 @@ func readUserFromDatabase() {
   } else {
     //fmt.Println("result =>", &result)
   }
-  elapsed := time.Since(start)
-  //readLatencies = append(readLatencies, elapsed.String())
-  fmt.Println("Took ", elapsed, " ms.")
+  elapsed := int(time.Since(start) / time.Millisecond)
+  readLatencies = append(readLatencies, elapsed)
 }
 
 func getRandomString(size int) string {
@@ -186,14 +196,10 @@ func printStats() {
   const writeRate = float64(WRITE_RATE) / 100;
   const readRate = 1 - writeRate;
 
-  //calc average write latency
   var avgWriteLatency = getAverage(writeLatencies);
-  //calc average read latency
   var avgReadLatency = getAverage(readLatencies);
 
-  //throughputWrite = 1000 / avgWriteLatency
   var throughputWrite = 1000 / avgWriteLatency;
-  //throughputRead = 1000 / avgReadLatency
   var throughputRead = 1000 / avgReadLatency;
 
   // sum = (writeRate * throughputWrite) + (readRate * throughputRead)
@@ -244,13 +250,9 @@ func main() {
   }
   wg.Wait()
 
-  //end time
   elapsed := time.Since(start)
   fmt.Println("Took ", elapsed, " ms to perform 2500 operations.")
 
   printStats();
-  // fmt.Printf("Write latencies %\n", writeLatencies)
-  // fmt.Printf("Read latencias %\n", readLatencies)
-
-  //fmt.Println("Finished.")
 }
+
