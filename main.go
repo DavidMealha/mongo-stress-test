@@ -29,10 +29,10 @@ const (
   DATABASE_NAME     = "users"
   COLLECTION_NAME   = "customers"
   PROXY_ADDRESS     = "http://localhost:8126"
-  //SERVICE_ADDRESS   = "http://localhost:8080/"
+  SERVICE_ADDRESS   = "http://localhost:8080/"
   //SERVICE_ADDRESS   = "http://3.120.161.145:8080/"
   //SERVICE_ADDRESS   = "http://52.213.179.93:8080/"
-  WRITE_RATE        = 10
+  WRITE_RATE        = 100
 )
 
 func init() {
@@ -41,25 +41,13 @@ func init() {
 
 func startClient(client *http.Client, clientNr int, nrOperations int) {
   for i := 0; i < nrOperations; i++ {
-    rand := rand.Intn(100)
+    randRate := rand.Intn(100)
 
-    if rand < WRITE_RATE {
+    if randRate < WRITE_RATE {
       // insertUser(client)
   
-      randOp := rand / 25
-
-      if randOp == 1 {
-        insertUserFromWrapper(client)
-      } else if randOp == 2 {
-        fmt.Println("Update operation")
-        //updateUserFromWrapper(client)
-      } else if randOp == 3 {
-        fmt.Println("Replace operation")
-        // replaceUserFromWrapper(client)
-      } else {
-        fmt.Println("Delete operation")
-        // deleteUserFromWrapper(client)
-      }
+      randOp := rand.Intn(4)
+      writeOperationToWrapper(client, randOp)
     } else {
       readUserFromDatabase()
     }
@@ -124,6 +112,78 @@ func randomHex(n int) string {
   return hex.EncodeToString(bytes)
 }
 
+func writeOperationToWrapper(client *http.Client, opType int) {
+  start := time.Now()
+
+  if randOp == 0 { // insert
+    payload := getInsertOperationInJson()
+  } else if randOp == 1 { // update
+    payload := getUpdateOperationInJson()
+  } else if randOp == 2 { // replace
+    payload := getReplaceOperationInJson()
+  } else { // delete
+    payload := getDeleteOperationInJson()
+  }
+
+  var jsonStr = []byte(str)
+
+  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+  req.Header.Set("Content-Type", "application/json")
+  req.Header.Set("Connection", "keep-alive")
+
+  resp, err := client.Do(req)
+
+  if err != nil {
+    fmt.Println(err)
+  }
+  parsedBody,err := ioutil.ReadAll(resp.Body)
+  defer resp.Body.Close()
+
+  elapsed := int(time.Since(start) / time.Microsecond)
+  writeLatencies = append(writeLatencies, elapsed)
+  
+  body := string(parsedBody)
+  fmt.Println("Insert Response", body)
+}
+
+func getInsertOperationInJson() string {
+  return `{"operationType":"INSERT",` + 
+        `"fullDocument":{"username":"` + getRandomString(12) + 
+        `","password":"` + getRandomString(12) +
+        `","email":"` + getRandomString(12) +
+        `","firstName":"` + getRandomString(12) +
+        `","lastName":"` + getRandomString(12) +
+        `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
+        `"},"ns":{"coll":"` + COLLECTION_NAME +
+        `","db":"` + DATABASE_NAME +
+        `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
+}
+
+func getUpdateOperationInJson() string {
+  // generate a random index from the array of ids
+
+  // updatedFields: {}
+  // removedFields: []
+  return `{"operationType":"INSERT",` + 
+        `"fullDocument":{"username":"` + getRandomString(12) + 
+        `","password":"` + getRandomString(12) +
+        `","email":"` + getRandomString(12) +
+        `","firstName":"` + getRandomString(12) +
+        `","lastName":"` + getRandomString(12) +
+        `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
+        `"},"ns":{"coll":"` + COLLECTION_NAME +
+        `","db":"` + DATABASE_NAME +
+        `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
+}
+
+func getReplaceOperationInJson() string {
+  return ''
+}
+
+func getDeleteOperationInJson() string {
+  return ''
+}
+
 func insertUserFromWrapper(client *http.Client) {
   start := time.Now()
   url := PROXY_ADDRESS
@@ -149,9 +209,47 @@ func insertUserFromWrapper(client *http.Client) {
   if err != nil {
     fmt.Println(err)
   }
+  parsedBody,err := ioutil.ReadAll(resp.Body)
   defer resp.Body.Close()
-  elapsed := int(time.Since(start) / time.Millisecond)
+
+  elapsed := int(time.Since(start) / time.Microsecond)
   writeLatencies = append(writeLatencies, elapsed)
+  body := string(parsedBody)
+  fmt.Println("Insert Response", body)
+}
+
+func updateUserFromWrapper(client *http.Client) {
+  start := time.Now()
+  url := PROXY_ADDRESS
+  str := `{"operationType":"INSERT",` + 
+          `"fullDocument":{"username":"` + getRandomString(12) + 
+          `","password":"` + getRandomString(12) +
+          `","email":"` + getRandomString(12) +
+          `","firstName":"` + getRandomString(12) +
+          `","lastName":"` + getRandomString(12) +
+          `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
+          `"},"ns":{"coll":"` + COLLECTION_NAME +
+          `","db":"` + DATABASE_NAME +
+          `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
+
+  var jsonStr = []byte(str)
+
+  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+  req.Header.Set("Content-Type", "application/json")
+  req.Header.Set("Connection", "keep-alive")
+
+  resp, err := client.Do(req)
+
+  if err != nil {
+    fmt.Println(err)
+  }
+  parsedBody,err := ioutil.ReadAll(resp.Body)
+  defer resp.Body.Close()
+
+  elapsed := int(time.Since(start) / time.Microsecond)
+  writeLatencies = append(writeLatencies, elapsed)
+  body := string(parsedBody)
+  fmt.Println("Insert Response", body)
 }
 
 func readUserFromDatabase() {
