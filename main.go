@@ -21,7 +21,7 @@ var (
   letters = []string{"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"}
   writeLatencies []int
   readLatencies []int
-  ids = []string{"537f700b537461b70c5f0000","537f700b537461b70c5f0001","537f700b537461b70c5f0002","537f700b537461b70c5f0003"}
+  ids = []string{"537f700b537461b70c5f0000"}
 )
 
 const (
@@ -32,7 +32,7 @@ const (
   SERVICE_ADDRESS   = "http://localhost:8080/"
   //SERVICE_ADDRESS   = "http://3.120.161.145:8080/"
   //SERVICE_ADDRESS   = "http://52.213.179.93:8080/"
-  WRITE_RATE        = 100
+  WRITE_RATE        = 50
 )
 
 func init() {
@@ -45,7 +45,6 @@ func startClient(client *http.Client, clientNr int, nrOperations int) {
 
     if randRate < WRITE_RATE {
       // insertUser(client)
-  
       randOp := rand.Intn(4)
       writeOperationToWrapper(client, randOp)
     } else {
@@ -101,7 +100,6 @@ func readUser() {
   parsedBody, err := ioutil.ReadAll(resp.Body)
   body := string(parsedBody)
   fmt.Println("Response:", body)
-
 }
 
 func randomHex(n int) string {
@@ -115,19 +113,20 @@ func randomHex(n int) string {
 func writeOperationToWrapper(client *http.Client, opType int) {
   start := time.Now()
 
-  if randOp == 0 { // insert
-    payload := getInsertOperationInJson()
-  } else if randOp == 1 { // update
-    payload := getUpdateOperationInJson()
-  } else if randOp == 2 { // replace
-    payload := getReplaceOperationInJson()
+  var payload string
+  if opType == 0 { // insert
+    payload = getInsertOperationInJson()
+  } else if opType == 1 { // update
+    payload = getUpdateOperationInJson()
+  } else if opType == 2 { // replace
+    payload = getReplaceOperationInJson()
   } else { // delete
-    payload := getDeleteOperationInJson()
+    payload = getDeleteOperationInJson()
   }
 
-  var jsonStr = []byte(str)
+  var jsonStr = []byte(payload)
 
-  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+  req, err := http.NewRequest("POST", PROXY_ADDRESS, bytes.NewBuffer(jsonStr))
   req.Header.Set("Content-Type", "application/json")
   req.Header.Set("Connection", "keep-alive")
 
@@ -135,6 +134,7 @@ func writeOperationToWrapper(client *http.Client, opType int) {
 
   if err != nil {
     fmt.Println(err)
+    return
   }
   parsedBody,err := ioutil.ReadAll(resp.Body)
   defer resp.Body.Close()
@@ -143,10 +143,14 @@ func writeOperationToWrapper(client *http.Client, opType int) {
   writeLatencies = append(writeLatencies, elapsed)
   
   body := string(parsedBody)
-  fmt.Println("Insert Response", body)
+  fmt.Println("Operation =>", opType, "Response", body)
 }
 
 func getInsertOperationInJson() string {
+  newId := randomHex(12)
+  fmt.Println("\n[========]\nInsert with id => ", newId, "\n[========]\n")
+  ids = append(ids, newId)
+
   return `{"operationType":"INSERT",` + 
         `"fullDocument":{"username":"` + getRandomString(12) + 
         `","password":"` + getRandomString(12) +
@@ -156,100 +160,27 @@ func getInsertOperationInJson() string {
         `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
         `"},"ns":{"coll":"` + COLLECTION_NAME +
         `","db":"` + DATABASE_NAME +
-        `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
+        `"},"documentKey":{"_id":"` + newId + `"}}`
 }
 
 func getUpdateOperationInJson() string {
-  // generate a random index from the array of ids
-
-  // updatedFields: {}
-  // removedFields: []
-  return `{"operationType":"INSERT",` + 
-        `"fullDocument":{"username":"` + getRandomString(12) + 
-        `","password":"` + getRandomString(12) +
+  randomId := ids[rand.Intn(len(ids))]
+  return `{"operationType":"UPDATE",` + 
+        `"updatedFields":{"username":"` + getRandomString(12) + 
         `","email":"` + getRandomString(12) +
-        `","firstName":"` + getRandomString(12) +
-        `","lastName":"` + getRandomString(12) +
-        `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
-        `"},"ns":{"coll":"` + COLLECTION_NAME +
+        `","firstName":"` + getRandomString(12) +        
+        `"},"removedFields":["lastName"],` + 
+        `"ns":{"coll":"` + COLLECTION_NAME +
         `","db":"` + DATABASE_NAME +
-        `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
+        `"},"documentKey":{"_id":"` + randomId + `"}}`
 }
 
 func getReplaceOperationInJson() string {
-  return ''
+  return ""
 }
 
 func getDeleteOperationInJson() string {
-  return ''
-}
-
-func insertUserFromWrapper(client *http.Client) {
-  start := time.Now()
-  url := PROXY_ADDRESS
-  str := `{"operationType":"INSERT",` + 
-          `"fullDocument":{"username":"` + getRandomString(12) + 
-          `","password":"` + getRandomString(12) +
-          `","email":"` + getRandomString(12) +
-          `","firstName":"` + getRandomString(12) +
-          `","lastName":"` + getRandomString(12) +
-          `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
-          `"},"ns":{"coll":"` + COLLECTION_NAME +
-          `","db":"` + DATABASE_NAME +
-          `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
-
-  var jsonStr = []byte(str)
-
-  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-  req.Header.Set("Content-Type", "application/json")
-  req.Header.Set("Connection", "keep-alive")
-
-  resp, err := client.Do(req)
-
-  if err != nil {
-    fmt.Println(err)
-  }
-  parsedBody,err := ioutil.ReadAll(resp.Body)
-  defer resp.Body.Close()
-
-  elapsed := int(time.Since(start) / time.Microsecond)
-  writeLatencies = append(writeLatencies, elapsed)
-  body := string(parsedBody)
-  fmt.Println("Insert Response", body)
-}
-
-func updateUserFromWrapper(client *http.Client) {
-  start := time.Now()
-  url := PROXY_ADDRESS
-  str := `{"operationType":"INSERT",` + 
-          `"fullDocument":{"username":"` + getRandomString(12) + 
-          `","password":"` + getRandomString(12) +
-          `","email":"` + getRandomString(12) +
-          `","firstName":"` + getRandomString(12) +
-          `","lastName":"` + getRandomString(12) +
-          `","origin_created_at":"` + strconv.FormatInt(time.Now().UnixNano()/int64(time.Microsecond),10) + 
-          `"},"ns":{"coll":"` + COLLECTION_NAME +
-          `","db":"` + DATABASE_NAME +
-          `"},"documentKey":{"_id":"` + randomHex(12) + `"}}`
-
-  var jsonStr = []byte(str)
-
-  req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
-  req.Header.Set("Content-Type", "application/json")
-  req.Header.Set("Connection", "keep-alive")
-
-  resp, err := client.Do(req)
-
-  if err != nil {
-    fmt.Println(err)
-  }
-  parsedBody,err := ioutil.ReadAll(resp.Body)
-  defer resp.Body.Close()
-
-  elapsed := int(time.Since(start) / time.Microsecond)
-  writeLatencies = append(writeLatencies, elapsed)
-  body := string(parsedBody)
-  fmt.Println("Insert Response", body)
+  return ""
 }
 
 func readUserFromDatabase() {
@@ -265,12 +196,14 @@ func readUserFromDatabase() {
   c := session.DB(DATABASE_NAME).C(COLLECTION_NAME)
 
   var result users.User
-  err = c.FindId(bson.M{ "_id": bson.ObjectIdHex("537f700b537461b70c5f0000") }).One(&result)
+  randomId := ids[rand.Intn(len(ids))]
+  fmt.Println("Random id from ids => ", randomId)
+  err = c.FindId(bson.M{ "_id": bson.ObjectIdHex(randomId) }).One(&result)
 
   if err != nil {
     fmt.Println("error retrieving record =>", err)
   } else {
-    //fmt.Println("result =>", &result)
+    fmt.Println("result =>", &result)
   }
   elapsed := int(time.Since(start) / time.Millisecond)
   readLatencies = append(readLatencies, elapsed)
